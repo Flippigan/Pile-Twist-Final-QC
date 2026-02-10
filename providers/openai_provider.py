@@ -11,7 +11,10 @@ from . import VisionProvider, register_provider
 class OpenAIProvider(VisionProvider):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.client = OpenAI(api_key=config.get("openai_api_key"))
+        kwargs = {}
+        if config.get("openai_api_key"):
+            kwargs["api_key"] = config["openai_api_key"]
+        self.client = OpenAI(**kwargs)
 
     def read_image(self, image_path: str) -> dict:
         image_data = base64.b64encode(Path(image_path).read_bytes()).decode()

@@ -11,7 +11,10 @@ from . import VisionProvider, register_provider
 class GeminiProvider(VisionProvider):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.client = genai.Client(api_key=config.get("gemini_api_key"))
+        kwargs = {}
+        if config.get("gemini_api_key"):
+            kwargs["api_key"] = config["gemini_api_key"]
+        self.client = genai.Client(**kwargs)
 
     def read_image(self, image_path: str) -> dict:
         image_data = base64.b64encode(Path(image_path).read_bytes()).decode()

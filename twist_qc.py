@@ -7,6 +7,9 @@ import time
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from csv_updater import CSVUpdater
 from image_editor import annotate_image

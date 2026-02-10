@@ -7,6 +7,7 @@ in the title area of matplotlib plot images.
 from pathlib import Path
 import platform
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -50,6 +51,55 @@ def _find_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
+def _find_twist_line_y(img_array: np.ndarray) -> int | None:
+    """Scan the image for the Y position of the 'Twist:' title text.
+
+    Looks for clusters of dark gray pixels (matplotlib title text) in the
+    top 30% of the image. Returns the top Y of the second text cluster
+    (the 'Twist:' line), or None if not found.
+    """
+    height, width = img_array.shape[:2]
+    scan_limit = int(height * 0.30)
+
+    # Find rows with centered dark gray pixels (title text is gray, centered)
+    center_start = int(width * 0.25)
+    center_end = int(width * 0.75)
+    text_rows = []
+
+    for y in range(scan_limit):
+        row = img_array[y, center_start:center_end, :]
+        # Dark gray: R=G=B, between 50-140
+        gray_mask = (
+            (row[:, 0] > 40) & (row[:, 0] < 150)
+            & (np.abs(row[:, 0].astype(int) - row[:, 1].astype(int)) < 20)
+            & (np.abs(row[:, 1].astype(int) - row[:, 2].astype(int)) < 20)
+        )
+        if gray_mask.sum() >= 4:
+            text_rows.append(y)
+
+    if not text_rows:
+        return None
+
+    # Group into clusters (text lines) separated by gaps
+    clusters = []
+    current = [text_rows[0]]
+    for y in text_rows[1:]:
+        if y - current[-1] <= 3:  # within same text line
+            current.append(y)
+        else:
+            clusters.append(current)
+            current = [y]
+    clusters.append(current)
+
+    # The second cluster is the "Twist:" line
+    if len(clusters) >= 2:
+        return clusters[1][0]
+    # If only one cluster, it might be the "Twist:" line itself
+    if len(clusters) == 1:
+        return clusters[0][0]
+    return None
+
+
 def annotate_image(
     image_path: str,
     old_twist: float,
@@ -85,9 +135,12 @@ def annotate_image(
     # X: centered on image width
     twist_line_x = (width - twist_width) // 2
 
-    # Y: second line of two-line title. Calibrated against 500x500 matplotlib plots
-    # where the "Twist:" line sits at ~y=93 (18.6% from top).
-    twist_line_y = int(height * 0.186)
+    # Y: find the actual "Twist:" line by scanning for gray title text
+    img_array = np.array(img)
+    twist_line_y = _find_twist_line_y(img_array)
+    if twist_line_y is None:
+        # Fallback: assume second title line at ~18.6% from top
+        twist_line_y = int(height * 0.186)
 
     # Calculate where the value starts (after "Twist: " label)
     label_text = "Twist: "
