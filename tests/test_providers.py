@@ -67,3 +67,26 @@ class TestRegistry:
     def test_unknown_provider_raises(self):
         with pytest.raises(ValueError, match="Unknown provider"):
             get_provider("nonexistent_provider_xyz", {})
+
+
+from unittest.mock import patch, MagicMock
+
+
+class TestOpenAIProvider:
+    def test_read_image_calls_api(self, sample_image):
+        from providers.openai_provider import OpenAIProvider
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = (
+            '{"pile_number": 2787, "measured_angle": 90.89, "old_twist": 3.06}'
+        )
+
+        with patch("providers.openai_provider.OpenAI") as MockClient:
+            MockClient.return_value.chat.completions.create.return_value = mock_response
+            provider = OpenAIProvider({"openai_api_key": "test-key"})
+            result = provider.read_image(str(sample_image))
+
+        assert result["pile_number"] == 2787
+        assert result["measured_angle"] == 90.89
+        assert result["old_twist"] == 3.06
