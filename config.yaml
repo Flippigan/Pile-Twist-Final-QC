@@ -1,0 +1,11 @@
+# config.yaml
+# API keys come from environment variables:
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY
+
+# Paths (relative to project root)
+input_folder: ./Needs QC
+output_folder: ./Needs QC/QCd
+csv_path: ./Needs QC/Final_Report.csv
+
+# Default LLM provider
+default_provider: openai
