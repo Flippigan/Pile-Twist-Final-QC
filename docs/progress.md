@@ -75,16 +75,28 @@
 - 5 integration tests: successful processing, dry-run no save, invalid angle rejected, LLM failure handled, CSV miss still saves image
 - Full suite: 36 tests passing
 
+## Task 10: Visual Calibration — DONE
+**Commit:** `4256d3c` — `fix: calibrate image editor text positioning against reference images`
+
+- Pixel-scanned reference 500x500 images to find actual title text Y positions
+- Initial calibration: adjusted Y-offset from 6.8% to 18.6%, font size from 3.3% to 2.8%
+- Later replaced with dynamic `_find_twist_line_y()` pixel scanner (see Task 11)
+
+## Task 11: End-to-End Smoke Test — DONE
+**Commit:** `eafadfb` — `feat: E2E smoke test verified with Claude vision provider`
+
+- Added `python-dotenv` for `.env` file API key loading
+- Fixed all providers to let SDKs read env vars when key not in config
+- Replaced fixed-percentage Y-offset with dynamic `_find_twist_line_y()` that scans for gray title pixels — works for both 500x500 and 600x600 images
+- Added `.env.example` template, `.env` to `.gitignore`
+- E2E verified: Claude reads pile 2796 image → angle=88.91° → new_twist=1.09° → annotated image saved → CSV updated
+- Annotation visually matches reference QCd images on both image sizes
+
 ---
 
-## Pending Tasks
-
-| # | Task | Status |
-|---|------|--------|
-| 10 | Visual Calibration | pending |
-| 11 | End-to-End Smoke Test | pending |
+## ALL TASKS COMPLETE
 
 ## Test Suite Status
 - **Total tests:** 36
 - **All passing:** yes
-- **Last full run:** after Task 9 commit
+- **Last full run:** after Task 11 commit
