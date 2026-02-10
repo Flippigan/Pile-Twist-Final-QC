@@ -117,6 +117,12 @@
 - **Misreads (now fixed):** ~5 angles near 90° where leading digits were dropped
 - **Output location:** `Needs QC - LLM Test/Output/`
 
+## Open Issues
+
+1. **Pile number extraction is wrong.** The prompt says `"Pile: 2787.0" -> 2787` but should be `"Pile: 2787.0" -> 27870`. All digits matter — just drop the decimal point. The pile number in the title includes a `.0` that is part of the number (e.g., pile 2787.0 → 27870, which matches the image filename `27870.jpg`).
+
+2. **Old twist value is unnecessary.** The prompt asks the LLM to extract `old_twist` from the title, but we don't need it. Only `pile_number` and `measured_angle` are required — the old twist can be read programmatically from the title text if needed for annotation, rather than wasting an LLM extraction step.
+
 ## Known Considerations
 - Input images must have green angle annotation drawn by human before processing
 - Images in `Needs QC/` (without "done" prefix and not already in QCd/) are auto-discovered

@@ -74,9 +74,7 @@ class TestProcessImage:
     def test_successful_processing(self, sample_image, sample_csv, tmp_path):
         mock_provider = MagicMock()
         mock_provider.read_image.return_value = {
-            "pile_number": 2787,
             "measured_angle": 90.89,
-            "old_twist": 3.06,
         }
         csv_updater = CSVUpdater(str(sample_csv))
         output = tmp_path / "QCd"
@@ -87,15 +85,13 @@ class TestProcessImage:
         )
 
         assert success is True
-        assert "2787" in msg
+        assert "27870" in msg  # pile number from filename 27870.jpg
         assert (output / sample_image.name).exists()
 
     def test_dry_run_no_save(self, sample_image, sample_csv, tmp_path):
         mock_provider = MagicMock()
         mock_provider.read_image.return_value = {
-            "pile_number": 2787,
             "measured_angle": 90.89,
-            "old_twist": 3.06,
         }
         csv_updater = CSVUpdater(str(sample_csv))
         output = tmp_path / "QCd"
@@ -112,9 +108,7 @@ class TestProcessImage:
     def test_invalid_angle_rejected(self, sample_image, sample_csv, tmp_path):
         mock_provider = MagicMock()
         mock_provider.read_image.return_value = {
-            "pile_number": 2787,
             "measured_angle": 200.0,
-            "old_twist": 3.06,
         }
         csv_updater = CSVUpdater(str(sample_csv))
         output = tmp_path / "QCd"
@@ -144,18 +138,20 @@ class TestProcessImage:
     def test_csv_miss_still_saves_image(self, sample_image, sample_csv, tmp_path):
         mock_provider = MagicMock()
         mock_provider.read_image.return_value = {
-            "pile_number": 11111,  # Not in CSV
             "measured_angle": 88.0,
-            "old_twist": 5.0,
         }
         csv_updater = CSVUpdater(str(sample_csv))
         output = tmp_path / "QCd"
         output.mkdir()
 
+        # Rename image to a pile number not in CSV
+        mismatched = tmp_path / "11111.jpg"
+        sample_image.rename(mismatched)
+
         success, msg = process_image(
-            mock_provider, sample_image, csv_updater, output
+            mock_provider, mismatched, csv_updater, output
         )
 
         assert success is True
         assert "UPN not found" in msg
-        assert (output / sample_image.name).exists()
+        assert (output / mismatched.name).exists()

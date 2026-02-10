@@ -1,4 +1,3 @@
-# image_editor.py
 """Pillow-based image annotation for twist QC.
 
 Adds red strikethrough over old twist value and green new value
@@ -100,16 +99,40 @@ def _find_twist_line_y(img_array: np.ndarray) -> int | None:
     return None
 
 
+def _find_text_x_extent(img_array: np.ndarray, y_start: int,
+                        scan_height: int, img_width: int) -> tuple[int, int] | None:
+    """Find the horizontal extent of gray text pixels on a title line.
+
+    Scans rows from y_start through scan_height to find the leftmost
+    and rightmost gray text pixels. Returns (left_x, right_x) or None.
+    """
+    left_x = img_width
+    right_x = 0
+    y_end = min(img_array.shape[0], y_start + scan_height)
+
+    for y in range(y_start, y_end):
+        row = img_array[y]
+        for x in range(img_width):
+            r, g, b = int(row[x, 0]), int(row[x, 1]), int(row[x, 2])
+            if (40 < r < 150
+                    and abs(r - g) < 20
+                    and abs(g - b) < 20):
+                left_x = min(left_x, x)
+                right_x = max(right_x, x)
+
+    if right_x > left_x:
+        return (left_x, right_x)
+    return None
+
+
 def annotate_image(
     image_path: str,
-    old_twist: float,
     new_twist: float,
 ) -> Image.Image:
     """Annotate a plot image with red strikethrough on old twist, green new twist.
 
     Args:
         image_path: Path to the matplotlib plot image.
-        old_twist: The current twist value shown in the title (e.g., 3.06).
         new_twist: The corrected twist value to display (e.g., -0.89).
 
     Returns:
@@ -123,18 +146,6 @@ def annotate_image(
     font_size = max(12, int(height * 0.028))
     font = _find_font(font_size)
 
-    # Format old twist as it appears in the matplotlib title
-    old_str = f"{old_twist:.2f}\u00b0"  # e.g., "3.06°" or "-4.82°"
-
-    # Full twist line as matplotlib renders it (centered)
-    twist_line_text = f"Twist: {old_str}"
-    twist_bbox = draw.textbbox((0, 0), twist_line_text, font=font)
-    twist_width = twist_bbox[2] - twist_bbox[0]
-    text_height = twist_bbox[3] - twist_bbox[1]
-
-    # X: centered on image width
-    twist_line_x = (width - twist_width) // 2
-
     # Y: find the actual "Twist:" line by scanning for gray title text
     img_array = np.array(img)
     twist_line_y = _find_twist_line_y(img_array)
@@ -142,19 +153,36 @@ def annotate_image(
         # Fallback: assume second title line at ~18.6% from top
         twist_line_y = int(height * 0.186)
 
+    # Estimate text height from font
+    sample_bbox = draw.textbbox((0, 0), "Twist: 0.00\u00b0", font=font)
+    text_height = sample_bbox[3] - sample_bbox[1]
+
+    # Find X extent of the twist line text by pixel scanning
+    text_extent = _find_text_x_extent(img_array, twist_line_y,
+                                      text_height + 4, width)
+
     # Calculate where the value starts (after "Twist: " label)
     label_text = "Twist: "
     label_bbox = draw.textbbox((0, 0), label_text, font=font)
     label_width = label_bbox[2] - label_bbox[0]
 
-    value_x = twist_line_x + label_width
-    value_bbox = draw.textbbox((0, 0), old_str, font=font)
-    value_width = value_bbox[2] - value_bbox[0]
+    if text_extent:
+        text_left, text_right = text_extent
+        value_x = text_left + label_width
+        value_end_x = text_right + 1
+    else:
+        # Fallback: estimate from centered template
+        template = "Twist: 0.00\u00b0"
+        tmpl_bbox = draw.textbbox((0, 0), template, font=font)
+        tmpl_width = tmpl_bbox[2] - tmpl_bbox[0]
+        text_left = (width - tmpl_width) // 2
+        value_x = text_left + label_width
+        value_end_x = text_left + tmpl_width
 
     # Red strikethrough line through the old value (horizontal, centered vertically)
     line_y = twist_line_y + text_height // 2
     draw.line(
-        [(value_x, line_y), (value_x + value_width, line_y)],
+        [(value_x, line_y), (value_end_x, line_y)],
         fill=(255, 0, 0),
         width=2,
     )
@@ -162,7 +190,7 @@ def annotate_image(
     # Green new twist value, right after the struck-through old value
     new_text = f"{new_twist:.2f}"
     gap = max(10, int(width * 0.04))
-    new_x = value_x + value_width + gap
+    new_x = value_end_x + gap
     draw.text(
         (new_x, twist_line_y),
         new_text,

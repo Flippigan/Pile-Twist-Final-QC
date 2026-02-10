@@ -8,17 +8,15 @@ class VisionProvider(ABC):
     """Base class for LLM vision providers."""
 
     PROMPT = (
-        "Look at this scatter plot image. Extract exactly three values:\n"
-        '1. The "Pile" number from the title (e.g., "Pile: 2787.0" -> 2787)\n'
-        "2. The GREEN angle measurement drawn on the plot near the intersection\n"
-        "   of the blue and red lines. It is a green number followed by a degree\n"
-        "   symbol (e.g., 90.55° or 88.94°). This value is typically between\n"
-        "   80° and 100°. Read ALL digits carefully — do not drop the leading\n"
-        "   digits. This is NOT the Twist value from the title.\n"
-        '3. The current "Twist" value from the title (e.g., "Twist: 3.06°" -> 3.06)\n'
+        "Look at this scatter plot image. Extract exactly one value:\n"
+        "The GREEN angle measurement drawn on the plot near the intersection\n"
+        "of the blue and red lines. It is a green number followed by a degree\n"
+        "symbol (e.g., 90.55° or 88.94°). This value is typically between\n"
+        "80° and 100°. Read ALL digits carefully — do not drop the leading\n"
+        "digits. This is NOT the Twist value from the title.\n"
         "\n"
         "Return JSON only: "
-        '{"pile_number": 2787, "measured_angle": 90.89, "old_twist": 3.06}'
+        '{"measured_angle": 90.89}'
     )
 
     def __init__(self, config: dict):
@@ -26,7 +24,7 @@ class VisionProvider(ABC):
 
     @abstractmethod
     def read_image(self, image_path: str) -> dict:
-        """Returns {"pile_number": int, "measured_angle": float, "old_twist": float}"""
+        """Returns {"measured_angle": float}"""
 
     def parse_response(self, text: str) -> dict:
         """Extract JSON from LLM response text."""
@@ -34,15 +32,12 @@ class VisionProvider(ABC):
         if not match:
             raise ValueError(f"No JSON found in response: {text[:200]}")
         data = json.loads(match.group())
-        required = {"pile_number", "measured_angle", "old_twist"}
-        if not required.issubset(data.keys()):
+        if "measured_angle" not in data:
             raise ValueError(
-                f"Missing required fields. Need {required}, got {set(data.keys())}"
+                f"Missing required field 'measured_angle'. Got {set(data.keys())}"
             )
         return {
-            "pile_number": int(data["pile_number"]),
             "measured_angle": float(data["measured_angle"]),
-            "old_twist": float(data["old_twist"]),
         }
 
 

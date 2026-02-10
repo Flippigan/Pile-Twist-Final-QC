@@ -16,20 +16,15 @@ class TestParseResponse:
     def test_valid_json(self):
         p = self._make_provider()
         result = p.parse_response(
-            '{"pile_number": 2787, "measured_angle": 90.89, "old_twist": 3.06}'
+            '{"measured_angle": 90.89}'
         )
-        assert result == {
-            "pile_number": 2787,
-            "measured_angle": 90.89,
-            "old_twist": 3.06,
-        }
+        assert result == {"measured_angle": 90.89}
 
     def test_json_embedded_in_text(self):
         p = self._make_provider()
         result = p.parse_response(
-            'Here is the data: {"pile_number": 777, "measured_angle": 87.35, "old_twist": 4.69} done.'
+            'Here is the data: {"measured_angle": 87.35} done.'
         )
-        assert result["pile_number"] == 777
         assert result["measured_angle"] == 87.35
 
     def test_no_json_raises(self):
@@ -39,17 +34,23 @@ class TestParseResponse:
 
     def test_missing_fields_raises(self):
         p = self._make_provider()
-        with pytest.raises(ValueError, match="Missing required fields"):
-            p.parse_response('{"pile_number": 2787}')
+        with pytest.raises(ValueError, match="Missing required field"):
+            p.parse_response('{"pile_number": 27870}')
 
-    def test_types_coerced(self):
+    def test_type_coerced(self):
         p = self._make_provider()
         result = p.parse_response(
-            '{"pile_number": "2787", "measured_angle": "90.89", "old_twist": "3.06"}'
+            '{"measured_angle": "90.89"}'
         )
-        assert isinstance(result["pile_number"], int)
         assert isinstance(result["measured_angle"], float)
-        assert isinstance(result["old_twist"], float)
+
+    def test_extra_fields_ignored(self):
+        """LLM may return extra fields — they should be ignored."""
+        p = self._make_provider()
+        result = p.parse_response(
+            '{"measured_angle": 90.89, "pile_number": 27870}'
+        )
+        assert result == {"measured_angle": 90.89}
 
 
 class TestRegistry:
@@ -79,7 +80,7 @@ class TestOpenAIProvider:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = (
-            '{"pile_number": 2787, "measured_angle": 90.89, "old_twist": 3.06}'
+            '{"measured_angle": 90.89}'
         )
 
         with patch("providers.openai_provider.OpenAI") as MockClient:
@@ -87,9 +88,7 @@ class TestOpenAIProvider:
             provider = OpenAIProvider({"openai_api_key": "test-key"})
             result = provider.read_image(str(sample_image))
 
-        assert result["pile_number"] == 2787
         assert result["measured_angle"] == 90.89
-        assert result["old_twist"] == 3.06
 
 
 class TestClaudeProvider:
@@ -99,7 +98,7 @@ class TestClaudeProvider:
         mock_response = MagicMock()
         mock_response.content = [MagicMock()]
         mock_response.content[0].text = (
-            '{"pile_number": 777, "measured_angle": 87.35, "old_twist": 4.69}'
+            '{"measured_angle": 87.35}'
         )
 
         with patch("providers.claude_provider.anthropic") as mock_anthropic:
@@ -109,9 +108,7 @@ class TestClaudeProvider:
             provider = ClaudeProvider({"claude_api_key": "test-key"})
             result = provider.read_image(str(sample_image))
 
-        assert result["pile_number"] == 777
         assert result["measured_angle"] == 87.35
-        assert result["old_twist"] == 4.69
 
 
 class TestGeminiProvider:
@@ -120,7 +117,7 @@ class TestGeminiProvider:
 
         mock_response = MagicMock()
         mock_response.text = (
-            '{"pile_number": 2791, "measured_angle": 92.35, "old_twist": -3.11}'
+            '{"measured_angle": 92.35}'
         )
 
         with patch("providers.gemini_provider.genai") as mock_genai:
@@ -130,6 +127,4 @@ class TestGeminiProvider:
             provider = GeminiProvider({"gemini_api_key": "test-key"})
             result = provider.read_image(str(sample_image))
 
-        assert result["pile_number"] == 2791
         assert result["measured_angle"] == 92.35
-        assert result["old_twist"] == -3.11

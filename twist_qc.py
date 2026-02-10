@@ -67,14 +67,15 @@ def get_images(
 
 def process_image(provider, image_path, csv_updater, output_folder, dry_run=False):
     """Process a single image. Returns (success: bool, message: str)."""
+    # Pile number comes from the filename (e.g., 152680.jpg → 152680)
+    pile_number = int(image_path.stem)
+
     try:
         data = provider.read_image(str(image_path))
     except Exception as e:
         return False, f"LLM read failed: {e}"
 
-    pile_number = data["pile_number"]
     measured_angle = data["measured_angle"]
-    old_twist = data["old_twist"]
 
     if not (0 <= measured_angle <= 180):
         return False, f"Suspicious angle {measured_angle}\u00b0 (outside 0-180)"
@@ -84,12 +85,12 @@ def process_image(provider, image_path, csv_updater, output_folder, dry_run=Fals
     if dry_run:
         msg = (
             f"Pile {pile_number}: angle={measured_angle}\u00b0, "
-            f"old_twist={old_twist}\u00b0, new_twist={new_twist}\u00b0"
+            f"new_twist={new_twist}\u00b0"
         )
         return True, msg
 
     try:
-        annotated = annotate_image(str(image_path), old_twist, new_twist)
+        annotated = annotate_image(str(image_path), new_twist)
     except Exception as e:
         return False, f"Image annotation failed: {e}"
 
@@ -99,7 +100,7 @@ def process_image(provider, image_path, csv_updater, output_folder, dry_run=Fals
     output_path = output_folder / image_path.name
     annotated.save(str(output_path))
 
-    return True, f"Pile {pile_number}: {old_twist}\u00b0 \u2192 {new_twist}\u00b0{csv_msg}"
+    return True, f"Pile {pile_number}: new_twist={new_twist}\u00b0{csv_msg}"
 
 
 def compare_providers(images, config):
