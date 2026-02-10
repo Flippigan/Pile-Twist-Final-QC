@@ -90,3 +90,25 @@ class TestOpenAIProvider:
         assert result["pile_number"] == 2787
         assert result["measured_angle"] == 90.89
         assert result["old_twist"] == 3.06
+
+
+class TestClaudeProvider:
+    def test_read_image_calls_api(self, sample_image):
+        from providers.claude_provider import ClaudeProvider
+
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock()]
+        mock_response.content[0].text = (
+            '{"pile_number": 777, "measured_angle": 87.35, "old_twist": 4.69}'
+        )
+
+        with patch("providers.claude_provider.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = mock_response
+            provider = ClaudeProvider({"claude_api_key": "test-key"})
+            result = provider.read_image(str(sample_image))
+
+        assert result["pile_number"] == 777
+        assert result["measured_angle"] == 87.35
+        assert result["old_twist"] == 4.69
