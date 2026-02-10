@@ -69,9 +69,8 @@ def annotate_image(
     draw = ImageDraw.Draw(img)
     width, height = img.size
 
-    # Font size: matplotlib default title is ~12pt at 100 DPI.
-    # For a 480px image that's ~16px. Scale proportionally.
-    font_size = max(12, int(height * 0.033))
+    # Font size: calibrated against 500x500 matplotlib plots where title is ~14px.
+    font_size = max(12, int(height * 0.028))
     font = _find_font(font_size)
 
     # Format old twist as it appears in the matplotlib title
@@ -86,9 +85,9 @@ def annotate_image(
     # X: centered on image width
     twist_line_x = (width - twist_width) // 2
 
-    # Y: second line of two-line title. In matplotlib default layout,
-    # the second title line sits at roughly 7% from the top of the image.
-    twist_line_y = int(height * 0.068)
+    # Y: second line of two-line title. Calibrated against 500x500 matplotlib plots
+    # where the "Twist:" line sits at ~y=93 (18.6% from top).
+    twist_line_y = int(height * 0.186)
 
     # Calculate where the value starts (after "Twist: " label)
     label_text = "Twist: "
