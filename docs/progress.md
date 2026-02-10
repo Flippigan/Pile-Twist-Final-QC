@@ -92,11 +92,33 @@
 - E2E verified: Claude reads pile 2796 image → angle=88.91° → new_twist=1.09° → annotated image saved → CSV updated
 - Annotation visually matches reference QCd images on both image sizes
 
+## Post-plan: Prompt Tuning & Annotation Spacing
+**Commit:** `4ed741b` — `fix: improve LLM prompt for 90° angles and widen annotation gap`
+
+- Batch-tested 34 images from `Needs QC - LLM Test/QCd/` with Claude: 34/34 succeeded (94s, 2.8s/image)
+- Found ~5 misreads where Claude dropped leading "90" from angles near 90° (e.g., 90.55° → 0.55°)
+- Improved prompt: specifies angle is typically 80-100°, emphasizes reading ALL digits
+- Verified fix: Claude now correctly reads 90.55° on previously-misread image
+- Widened gap between strikethrough and green text (1.2% → 4% of image width) to prevent overlap
+- Output images saved to `Needs QC - LLM Test/Output/` (34 annotated images, pre-prompt-fix)
+
 ---
 
-## ALL TASKS COMPLETE
+## ALL 11 PLAN TASKS + POST-PLAN FIXES COMPLETE
 
 ## Test Suite Status
 - **Total tests:** 36
 - **All passing:** yes
-- **Last full run:** after Task 11 commit
+- **Last full run:** after prompt/gap fix commit
+
+## Batch Run Results (pre-prompt-fix, Claude provider)
+- **Images processed:** 34/34
+- **Time:** 94s (2.8s/image average)
+- **Misreads (now fixed):** ~5 angles near 90° where leading digits were dropped
+- **Output location:** `Needs QC - LLM Test/Output/`
+
+## Known Considerations
+- Input images must have green angle annotation drawn by human before processing
+- Images in `Needs QC/` (without "done" prefix and not already in QCd/) are auto-discovered
+- `Needs QC - LLM Test/QCd/` contains human-measured test images (not connected to default config)
+- API keys loaded from `.env` file (gitignored) or environment variables
