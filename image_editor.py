@@ -161,7 +161,7 @@ def annotate_image(
 
     # Green new twist value, right after the struck-through old value
     new_text = f"{new_twist:.2f}"
-    gap = max(5, int(width * 0.012))
+    gap = max(10, int(width * 0.04))
     new_x = value_x + value_width + gap
     draw.text(
         (new_x, twist_line_y),
