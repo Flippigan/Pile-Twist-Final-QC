@@ -112,3 +112,24 @@ class TestClaudeProvider:
         assert result["pile_number"] == 777
         assert result["measured_angle"] == 87.35
         assert result["old_twist"] == 4.69
+
+
+class TestGeminiProvider:
+    def test_read_image_calls_api(self, sample_image):
+        from providers.gemini_provider import GeminiProvider
+
+        mock_response = MagicMock()
+        mock_response.text = (
+            '{"pile_number": 2791, "measured_angle": 92.35, "old_twist": -3.11}'
+        )
+
+        with patch("providers.gemini_provider.genai") as mock_genai:
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_client.models.generate_content.return_value = mock_response
+            provider = GeminiProvider({"gemini_api_key": "test-key"})
+            result = provider.read_image(str(sample_image))
+
+        assert result["pile_number"] == 2791
+        assert result["measured_angle"] == 92.35
+        assert result["old_twist"] == -3.11
