@@ -65,6 +65,14 @@ class TestGetImages:
         assert images[0].name == "aaa.jpg"
 
 
+def test_paddleocr_provider_available():
+    """PaddleOCR should be importable and registered."""
+    import providers.paddleocr_provider  # noqa: F401
+    from providers import PROVIDERS
+
+    assert "paddleocr" in PROVIDERS
+
+
 from unittest.mock import MagicMock
 from twist_qc import process_image
 from csv_updater import CSVUpdater

@@ -8,4 +8,4 @@ output_folder: ./Needs QC/QCd
 csv_path: ./Needs QC/Final_Report.csv
 
 # Default LLM provider
-default_provider: openai
+default_provider: paddleocr

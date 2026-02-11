@@ -104,12 +104,69 @@
 
 ---
 
-## ALL 11 PLAN TASKS + POST-PLAN FIXES COMPLETE
+## PaddleOCR Integration
+
+**Plan:** [2026-02-10-paddleocr-angle-extraction.md](plans/2026-02-10-paddleocr-angle-extraction.md)
+**Started:** 2026-02-10
+
+### PaddleOCR Task 1: Add Dependencies — DONE
+
+- Added `paddlepaddle>=3.0.0` and `paddleocr>=2.9.0` to `requirements.txt`
+- **Blocker hit:** PaddlePaddle doesn't support Python 3.14 (max 3.13)
+- Recreated `.venv` with Python 3.13.1 (`/opt/homebrew/bin/python3.13`)
+- All existing + new deps installed successfully
+- Verified: `from paddleocr import PaddleOCR` imports cleanly
+
+### PaddleOCR Task 2: Green Pixel Isolation + Tests — DONE
+
+- Created `providers/paddleocr_provider.py` with `isolate_green_text()` function
+- RGB threshold mask: G>60, G>R+20, G>B+20 → crop to bounding box → binary (black text on white)
+- Upscales crops smaller than 60px height (3x nearest neighbor) for OCR accuracy
+- Added `sample_image_with_green` fixture to `tests/conftest.py`
+- 5 tests in `TestIsolateGreenText`: binary output, crop size, no-green raises, ignores red/blue, ignores gray scatter
+- **Adjustment:** Relaxed crop size assertion from <200 to <250 (3x upscaling made crop 210px wide)
+
+### PaddleOCR Task 3: Provider Class + Mocked Tests — DONE
+
+- Added `PaddleOCRProvider` class registered as `"paddleocr"` via existing decorator pattern
+- `_get_ocr()`: lazy singleton avoids reloading ~100MB of models per image
+- `_parse_angle_from_ocr()`: strips degree symbols/spaces, picks highest-confidence numeric result
+- 7 tests in `TestPaddleOCRProvider`: basic angle, degree symbol, spaces, multiple results, no text raises, no numeric raises, registry check
+- **Adjustment:** Changed mock strategy from patching `PaddleOCR` class to patching `_get_ocr` — singleton was leaking between tests
+
+### PaddleOCR Task 4: CLI Wiring + Config — DONE
+
+- Added `import providers.paddleocr_provider` to `twist_qc.py`
+- Added `"paddleocr"` to argparse `--provider` choices
+- Changed `default_provider` in `config.yaml` to `paddleocr`
+- Added `test_paddleocr_provider_available` test to `tests/test_twist_qc.py`
+
+### PaddleOCR Task 5: Parser Edge Case Tests — DONE
+
+- Added `TestParseAngleFromOCR` class with 9 tests (8 planned + 1 for asterisk stripping)
+- Tests cover: simple number, integer, degree symbol, spaces, highest confidence, None page, empty result, non-numeric text, asterisk (misread °)
+
+### PaddleOCR Task 6: Real Image Integration — DONE
+
+- **PaddleOCR v2.9+ API migration required:** `predict()` replaces deprecated `ocr()`, result format changed from `[[box, (text, conf)]]` to `OCRResult` objects with `rec_texts`/`rec_scores` lists
+- Disabled doc preprocessing (orientation classify, unwarping, textline orientation) — was rotating binary images and destroying text
+- Switched from NEAREST to LANCZOS upscaling — smooth anti-aliased edges read much better
+- Implemented dual-approach OCR: tries both binary mask AND original crop, picks highest-confidence result. Binary mask works for clear text; original crop preserves letter shapes when mask loses edge pixels
+- Added 40-140° range preference filter to avoid picking misread fragments (e.g., "6.97" vs "86.97")
+- Strips `%` in addition to `°` and `*` (OCR misreads degree symbol variously)
+- **Results:** 31/33 images read successfully (93.9%), 0 misreads, 2 failures on very faint text
+- Failing images (153450.jpg, 155230.jpg) have extremely faint green annotations
+
+### PaddleOCR Task 7: Documentation — DONE
+
+---
+
+## ALL 11 ORIGINAL PLAN TASKS + POST-PLAN FIXES COMPLETE
 
 ## Test Suite Status
-- **Total tests:** 36
+- **Total tests:** 59 (36 original + 23 PaddleOCR)
 - **All passing:** yes
-- **Last full run:** after prompt/gap fix commit
+- **Last full run:** after PaddleOCR Task 7
 
 ## Batch Run Results (pre-prompt-fix, Claude provider)
 - **Images processed:** 34/34

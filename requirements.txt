@@ -7,3 +7,5 @@ pandas>=2.0.0
 PyYAML>=6.0
 python-dotenv>=1.0.0
 pytest>=8.0.0
+paddlepaddle>=3.0.0
+paddleocr>=2.9.0

@@ -44,3 +44,26 @@ def sample_image(tmp_path):
     path = tmp_path / "27870.jpg"
     img.save(str(path))
     return path
+
+
+@pytest.fixture
+def sample_image_with_green(tmp_path):
+    """Create a plot-like image with green angle annotation text."""
+    img = Image.new("RGB", (500, 500), (240, 240, 240))  # light gray bg
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
+    except OSError:
+        font = ImageFont.load_default()
+    # Gray title text (like matplotlib)
+    draw.text((180, 12), "Pile: 15268.0", fill=(100, 100, 100), font=font)
+    draw.text((180, 34), "Twist: 4.91\u00b0", fill=(100, 100, 100), font=font)
+    # Red line (Calc Axis)
+    draw.line([(50, 250), (450, 260)], fill=(200, 0, 0), width=2)
+    # Blue line (North)
+    draw.line([(250, 50), (250, 450)], fill=(0, 0, 200), width=2)
+    # Green angle text — THIS is what we need to extract
+    draw.text((200, 230), "86.97\u00b0", fill=(0, 128, 0), font=font)
+    path = tmp_path / "152680.jpg"
+    img.save(str(path))
+    return path

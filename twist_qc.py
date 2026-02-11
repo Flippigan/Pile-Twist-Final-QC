@@ -19,6 +19,7 @@ from providers import get_provider
 import providers.openai_provider  # noqa: F401
 import providers.claude_provider  # noqa: F401
 import providers.gemini_provider  # noqa: F401
+import providers.paddleocr_provider  # noqa: F401
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
@@ -138,7 +139,7 @@ def main():
     parser.add_argument(
         "--provider",
         default=None,
-        choices=["openai", "claude", "gemini", "all"],
+        choices=["openai", "claude", "gemini", "paddleocr", "all"],
     )
     parser.add_argument("--image", default=None, help="Process a single image file")
     parser.add_argument(
