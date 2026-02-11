@@ -185,14 +185,38 @@
 - Batch re-tested 34 images from `Needs QC - LLM Test/QCd/`: 32/34 success (same 2 faint-text failures)
 - All 59 tests still passing
 
-## Open Issues
+## Post-plan: LLM Provider Removal + UPN Fix
+**Date:** 2026-02-11
 
-1. **Pile number extraction is wrong.** The prompt says `"Pile: 2787.0" -> 2787` but should be `"Pile: 2787.0" -> 27870`. All digits matter — just drop the decimal point. The pile number in the title includes a `.0` that is part of the number (e.g., pile 2787.0 → 27870, which matches the image filename `27870.jpg`).
+- Removed all LLM provider code and dependencies — PaddleOCR is now the sole provider
+- **Deleted:** `providers/openai_provider.py`, `providers/claude_provider.py`, `providers/gemini_provider.py`
+- **Removed from `providers/__init__.py`:** shared `PROMPT`, `parse_response()` JSON extractor, `json`/`re` imports
+- **Removed from `twist_qc.py`:** `dotenv` loading, API key config, `compare_providers()`, `--provider` CLI arg, all LLM imports
+- **Removed from `requirements.txt`:** `openai`, `anthropic`, `google-genai`, `python-dotenv`
+- **Removed from `config.yaml`:** API key comments, `default_provider` setting
+- **Removed from `tests/test_providers.py`:** `TestParseResponse`, `TestOpenAIProvider`, `TestClaudeProvider`, `TestGeminiProvider`
+- **UPN trailing-zero fix:** `process_image()` now strips one trailing zero from the filename to derive the pile number (e.g., `1526800.jpg` → UPN `152680`)
+- Updated test fixtures to use trailing-zero filenames (e.g., `278700.jpg` instead of `27870.jpg`)
+- Added `README.md` with setup, config, and usage instructions
+- **Total tests:** 50 (all passing)
 
-2. **Old twist value is unnecessary.** The prompt asks the LLM to extract `old_twist` from the title, but we don't need it. Only `pile_number` and `measured_angle` are required — the old twist can be read programmatically from the title text if needed for annotation, rather than wasting an LLM extraction step.
+## Post-plan: Auto-detect CSV File
+**Date:** 2026-02-11
+
+- Added `find_csv()` to `twist_qc.py` — auto-detects a single CSV in the input folder or its parent
+- Falls back to explicit `csv_path` in config if set
+- Errors clearly if 0 or >1 CSV files found, prompting user to set `csv_path` in config
+- Removed hardcoded `csv_path` from both `config.yaml` and `config-test.yaml`
+- Verified: auto-detected `INV_31_Twist.csv` in `Needs QC - LLM Test/` when input folder is `Needs QC - LLM Test/QCd/`
+
+## Batch Test Results (PaddleOCR, 2026-02-11)
+- **Images processed:** 34
+- **Success:** 32/34 (94.1%)
+- **Failed:** 153450.jpg, 155230.jpg (very faint green annotations)
+- **Output:** `Needs QC - LLM Test/Output/` (32 annotated images + CSV updated)
 
 ## Known Considerations
 - Input images must have green angle annotation drawn by human before processing
 - Images in `Needs QC/` (without "done" prefix and not already in QCd/) are auto-discovered
+- Image filenames must be UPN with a single trailing zero appended (e.g., `1526800.jpg` for UPN `152680`)
 - `Needs QC - LLM Test/QCd/` contains human-measured test images (not connected to default config)
-- API keys loaded from `.env` file (gitignored) or environment variables

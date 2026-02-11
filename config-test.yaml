@@ -1,5 +1,2 @@
 input_folder: ./Needs QC - LLM Test/QCd
 output_folder: ./Needs QC - LLM Test/Output
-csv_path: ./Needs QC/Final_Report.csv
-
-default_provider: claude

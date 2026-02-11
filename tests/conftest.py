@@ -41,7 +41,7 @@ def sample_image(tmp_path):
     # Simulate centered matplotlib title
     draw.text((240, 12), "Pile: 2787.0", fill="gray", font=font)
     draw.text((230, 34), "Twist: 3.06\u00b0", fill="gray", font=font)
-    path = tmp_path / "27870.jpg"
+    path = tmp_path / "278700.jpg"
     img.save(str(path))
     return path
 

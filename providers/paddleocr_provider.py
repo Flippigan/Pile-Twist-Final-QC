@@ -1,5 +1,5 @@
 # providers/paddleocr_provider.py
-"""PaddleOCR-based angle extraction — no LLM API calls needed."""
+"""PaddleOCR-based angle extraction from pile plot images."""
 import re
 
 import numpy as np

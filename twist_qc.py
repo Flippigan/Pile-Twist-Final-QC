@@ -1,40 +1,49 @@
 # twist_qc.py
 """Twist QC Automation - CLI entry point and orchestrator."""
 import argparse
-import os
 import sys
-import time
 from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from csv_updater import CSVUpdater
 from image_editor import annotate_image
 from providers import get_provider
 
-# Import providers to trigger @register_provider decorators
-import providers.openai_provider  # noqa: F401
-import providers.claude_provider  # noqa: F401
-import providers.gemini_provider  # noqa: F401
+# Import provider to trigger @register_provider decorator
 import providers.paddleocr_provider  # noqa: F401
 
 
 def load_config(config_path: str = "config.yaml") -> dict:
-    """Load config from YAML file, with env var overrides for API keys."""
+    """Load config from YAML file."""
     with open(config_path) as f:
         config = yaml.safe_load(f) or {}
-    for key, env_var in [
-        ("openai_api_key", "OPENAI_API_KEY"),
-        ("claude_api_key", "ANTHROPIC_API_KEY"),
-        ("gemini_api_key", "GOOGLE_API_KEY"),
-    ]:
-        env_val = os.environ.get(env_var)
-        if env_val:
-            config[key] = env_val
     return config
+
+
+def find_csv(input_folder: Path, config: dict) -> Path:
+    """Find the CSV file to update. Uses csv_path from config if set,
+    otherwise auto-detects a single CSV in input_folder or its parent."""
+    if "csv_path" in config:
+        return Path(config["csv_path"])
+
+    search_dirs = [input_folder, input_folder.parent]
+    csvs = []
+    for d in search_dirs:
+        csvs.extend(d.glob("*.csv"))
+    # Deduplicate (in case input_folder == parent somehow)
+    csvs = list({c.resolve(): c for c in csvs}.values())
+
+    if len(csvs) == 0:
+        raise FileNotFoundError(
+            f"No CSV file found in {input_folder} or {input_folder.parent}"
+        )
+    if len(csvs) > 1:
+        names = ", ".join(c.name for c in csvs)
+        raise RuntimeError(
+            f"Multiple CSV files found: {names}. "
+            f"Set csv_path in config or remove extras."
+        )
+    return csvs[0]
 
 
 def get_images(
@@ -68,13 +77,13 @@ def get_images(
 
 def process_image(provider, image_path, csv_updater, output_folder, dry_run=False):
     """Process a single image. Returns (success: bool, message: str)."""
-    # Pile number comes from the filename with trailing 0 removed (e.g., 1526800.jpg → 152680)
+    # Pile number comes from the filename with trailing 0 removed (e.g., 1526800.jpg -> 152680)
     pile_number = int(image_path.stem[:-1])
 
     try:
         data = provider.read_image(str(image_path))
     except Exception as e:
-        return False, f"LLM read failed: {e}"
+        return False, f"OCR read failed: {e}"
 
     measured_angle = data["measured_angle"]
 
@@ -104,43 +113,8 @@ def process_image(provider, image_path, csv_updater, output_folder, dry_run=Fals
     return True, f"Pile {pile_number}: new_twist={new_twist}\u00b0{csv_msg}"
 
 
-def compare_providers(images, config):
-    """Run all providers on same images and compare results."""
-    providers = {}
-    for name in ["openai", "claude", "gemini"]:
-        try:
-            providers[name] = get_provider(name, config)
-        except Exception as e:
-            print(f"  Skipping {name}: {e}")
-
-    for image_path in images:
-        print(f"\n{'=' * 50}")
-        print(f"Image: {image_path.name}")
-        print(f"{'=' * 50}")
-
-        for name, provider in providers.items():
-            start = time.time()
-            try:
-                data = provider.read_image(str(image_path))
-                elapsed = time.time() - start
-                new_twist = round(90 - data["measured_angle"], 2)
-                print(
-                    f"  {name:8s}: pile={data['pile_number']}, "
-                    f"angle={data['measured_angle']}\u00b0, "
-                    f"new_twist={new_twist}\u00b0 ({elapsed:.1f}s)"
-                )
-            except Exception as e:
-                elapsed = time.time() - start
-                print(f"  {name:8s}: FAILED - {e} ({elapsed:.1f}s)")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Twist QC Automation")
-    parser.add_argument(
-        "--provider",
-        default=None,
-        choices=["openai", "claude", "gemini", "paddleocr", "all"],
-    )
     parser.add_argument("--image", default=None, help="Process a single image file")
     parser.add_argument(
         "--dry-run", action="store_true", help="Log results without saving changes"
@@ -149,7 +123,6 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    provider_name = args.provider or config.get("default_provider", "openai")
 
     input_folder = Path(config["input_folder"])
     output_folder = Path(config["output_folder"])
@@ -162,12 +135,10 @@ def main():
 
     print(f"Found {len(images)} image(s) to process.")
 
-    if provider_name == "all":
-        compare_providers(images, config)
-        return
-
-    provider = get_provider(provider_name, config)
-    csv_updater = CSVUpdater(config["csv_path"])
+    provider = get_provider("paddleocr", config)
+    csv_path = find_csv(input_folder, config)
+    print(f"Using CSV: {csv_path.name}")
+    csv_updater = CSVUpdater(str(csv_path))
 
     results = {"success": [], "failed": []}
 

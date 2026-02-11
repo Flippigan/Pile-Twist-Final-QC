@@ -93,7 +93,7 @@ class TestProcessImage:
         )
 
         assert success is True
-        assert "27870" in msg  # pile number from filename 27870.jpg
+        assert "27870" in msg  # pile number from filename 278700.jpg (trailing 0 stripped)
         assert (output / sample_image.name).exists()
 
     def test_dry_run_no_save(self, sample_image, sample_csv, tmp_path):
@@ -129,7 +129,7 @@ class TestProcessImage:
         assert success is False
         assert "Suspicious angle" in msg
 
-    def test_llm_failure_handled(self, sample_image, sample_csv, tmp_path):
+    def test_ocr_failure_handled(self, sample_image, sample_csv, tmp_path):
         mock_provider = MagicMock()
         mock_provider.read_image.side_effect = Exception("API timeout")
         csv_updater = CSVUpdater(str(sample_csv))
@@ -141,7 +141,7 @@ class TestProcessImage:
         )
 
         assert success is False
-        assert "LLM read failed" in msg
+        assert "OCR read failed" in msg
 
     def test_csv_miss_still_saves_image(self, sample_image, sample_csv, tmp_path):
         mock_provider = MagicMock()
@@ -153,7 +153,7 @@ class TestProcessImage:
         output.mkdir()
 
         # Rename image to a pile number not in CSV
-        mismatched = tmp_path / "11111.jpg"
+        mismatched = tmp_path / "111110.jpg"
         sample_image.rename(mismatched)
 
         success, msg = process_image(

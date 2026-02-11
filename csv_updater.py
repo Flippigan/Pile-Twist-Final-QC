@@ -9,6 +9,8 @@ class CSVUpdater:
     def __init__(self, csv_path: str):
         self.csv_path = csv_path
         self.df = pd.read_csv(csv_path)
+        if "Twist_Deg" in self.df.columns:
+            self.df["Twist_Deg"] = self.df["Twist_Deg"].astype(float)
 
     def update_twist(self, pile_number: int, new_twist: float) -> bool:
         """Update Twist_Deg for the given UPN. Returns True if UPN found."""
