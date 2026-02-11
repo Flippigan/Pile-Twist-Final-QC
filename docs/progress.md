@@ -174,6 +174,17 @@
 - **Misreads (now fixed):** ~5 angles near 90° where leading digits were dropped
 - **Output location:** `Needs QC - LLM Test/Output/`
 
+## Post-plan: Strikethrough Line Fix
+**Date:** 2026-02-11
+
+- Red strikethrough was extending too far to the left, overlapping the "Twist:" label and y-axis labels
+- **Root cause 1:** `_find_text_x_extent()` scanned the full image width, picking up axis labels (e.g., "+3.6591e5") as gray text on the same row as the title
+- **Fix 1:** Restricted x-scan to center 25%-75% of image, matching `_find_twist_line_y()` behavior
+- **Root cause 2:** Pillow font measurement of "Twist: " didn't match matplotlib's actual rendered width, so absolute `label_width` was inaccurate
+- **Fix 2:** Switched to proportional approach — measure the ratio of "Twist: " to full template "Twist: 0.00°" with Pillow font, then apply ratio (+0.16 correction) to the actual pixel extent
+- Batch re-tested 34 images from `Needs QC - LLM Test/QCd/`: 32/34 success (same 2 faint-text failures)
+- All 59 tests still passing
+
 ## Open Issues
 
 1. **Pile number extraction is wrong.** The prompt says `"Pile: 2787.0" -> 2787` but should be `"Pile: 2787.0" -> 27870`. All digits matter — just drop the decimal point. The pile number in the title includes a `.0` that is part of the number (e.g., pile 2787.0 → 27870, which matches the image filename `27870.jpg`).

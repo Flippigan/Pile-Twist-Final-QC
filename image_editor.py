@@ -106,13 +106,16 @@ def _find_text_x_extent(img_array: np.ndarray, y_start: int,
     Scans rows from y_start through scan_height to find the leftmost
     and rightmost gray text pixels. Returns (left_x, right_x) or None.
     """
+    # Restrict to center 25%-75% to avoid picking up axis labels
+    x_start = int(img_width * 0.25)
+    x_end = int(img_width * 0.75)
     left_x = img_width
     right_x = 0
     y_end = min(img_array.shape[0], y_start + scan_height)
 
     for y in range(y_start, y_end):
         row = img_array[y]
-        for x in range(img_width):
+        for x in range(x_start, x_end):
             r, g, b = int(row[x, 0]), int(row[x, 1]), int(row[x, 2])
             if (40 < r < 150
                     and abs(r - g) < 20
@@ -161,20 +164,24 @@ def annotate_image(
     text_extent = _find_text_x_extent(img_array, twist_line_y,
                                       text_height + 4, width)
 
-    # Calculate where the value starts (after "Twist: " label)
+    # Calculate where the value starts using proportional measurement.
+    # Pillow font won't match matplotlib exactly, but the ratio of
+    # "Twist: " to the full title string is consistent across fonts.
     label_text = "Twist: "
+    template = "Twist: 0.00\u00b0"
     label_bbox = draw.textbbox((0, 0), label_text, font=font)
     label_width = label_bbox[2] - label_bbox[0]
+    tmpl_bbox = draw.textbbox((0, 0), template, font=font)
+    tmpl_width = tmpl_bbox[2] - tmpl_bbox[0]
+    label_ratio = label_width / tmpl_width
 
     if text_extent:
         text_left, text_right = text_extent
-        value_x = text_left + label_width
+        actual_text_width = text_right - text_left
+        value_x = text_left + int(actual_text_width * (label_ratio + 0.16))
         value_end_x = text_right + 1
     else:
         # Fallback: estimate from centered template
-        template = "Twist: 0.00\u00b0"
-        tmpl_bbox = draw.textbbox((0, 0), template, font=font)
-        tmpl_width = tmpl_bbox[2] - tmpl_bbox[0]
         text_left = (width - tmpl_width) // 2
         value_x = text_left + label_width
         value_end_x = text_left + tmpl_width

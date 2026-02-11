@@ -68,8 +68,8 @@ def get_images(
 
 def process_image(provider, image_path, csv_updater, output_folder, dry_run=False):
     """Process a single image. Returns (success: bool, message: str)."""
-    # Pile number comes from the filename (e.g., 152680.jpg → 152680)
-    pile_number = int(image_path.stem)
+    # Pile number comes from the filename with trailing 0 removed (e.g., 1526800.jpg → 152680)
+    pile_number = int(image_path.stem[:-1])
 
     try:
         data = provider.read_image(str(image_path))
