@@ -184,12 +184,17 @@ class TestPaddleOCRProvider:
 class TestFrozenModeMonkeyPatch:
     """Test that PyInstaller frozen mode patches PaddleX dep checking."""
 
-    def test_require_extra_patched_when_frozen(self, tmp_path):
-        """When sys.frozen=True, require_extra should be a no-op before PaddleOCR init."""
+    def test_all_dep_checkers_patched_when_frozen(self, tmp_path):
+        """When sys.frozen=True, all dep-checking functions should be no-ops."""
         import providers.paddleocr_provider as mod
         import paddlex.utils.deps as deps
 
-        original_require_extra = deps.require_extra
+        originals = {
+            "is_dep_available": deps.is_dep_available,
+            "is_extra_available": deps.is_extra_available,
+            "require_extra": deps.require_extra,
+            "require_deps": deps.require_deps,
+        }
 
         # Reset singleton so _get_ocr() re-runs its init logic
         mod._ocr_instance = None
@@ -197,8 +202,11 @@ class TestFrozenModeMonkeyPatch:
         captured = {}
 
         def spy_paddleocr(*args, **kwargs):
-            # Capture what require_extra looks like at PaddleOCR() call time
+            # Capture what dep checkers look like at PaddleOCR() call time
+            captured["is_dep_available"] = deps.is_dep_available
+            captured["is_extra_available"] = deps.is_extra_available
             captured["require_extra"] = deps.require_extra
+            captured["require_deps"] = deps.require_deps
             mock_instance = MagicMock()
             mock_instance.predict.return_value = []
             return mock_instance
@@ -209,21 +217,32 @@ class TestFrozenModeMonkeyPatch:
                  patch("providers.paddleocr_provider.PaddleOCR", side_effect=spy_paddleocr):
                 mod._get_ocr()
 
-            # require_extra should have been replaced with a no-op
-            assert captured["require_extra"] is not original_require_extra
-            # The no-op should not raise
-            captured["require_extra"]("ocr", alt="ocr-core")
+            # All dep checkers should have been replaced
+            for name, orig in originals.items():
+                assert captured[name] is not orig, f"{name} was not patched"
+
+            # Patched functions should not raise and return safe values
+            assert captured["is_dep_available"]("nonexistent-pkg") is True
+            assert captured["is_extra_available"]("ocr-core") is True
+            captured["require_extra"]("ocr", alt="ocr-core")  # no-op
+            captured["require_deps"]("pyclipper", "shapely")  # no-op
         finally:
-            # Restore original and reset singleton
-            deps.require_extra = original_require_extra
+            # Restore originals and reset singleton
+            for name, orig in originals.items():
+                setattr(deps, name, orig)
             mod._ocr_instance = None
 
-    def test_require_extra_not_patched_when_not_frozen(self):
-        """In normal (non-frozen) mode, require_extra should be untouched."""
+    def test_dep_checkers_not_patched_when_not_frozen(self):
+        """In normal (non-frozen) mode, dep checkers should be untouched."""
         import providers.paddleocr_provider as mod
         import paddlex.utils.deps as deps
 
-        original_require_extra = deps.require_extra
+        originals = {
+            "is_dep_available": deps.is_dep_available,
+            "is_extra_available": deps.is_extra_available,
+            "require_extra": deps.require_extra,
+            "require_deps": deps.require_deps,
+        }
 
         mod._ocr_instance = None
 
@@ -232,8 +251,9 @@ class TestFrozenModeMonkeyPatch:
                 mock_cls.return_value = MagicMock()
                 mod._get_ocr()
 
-            # require_extra should still be the original
-            assert deps.require_extra is original_require_extra
+            # All dep checkers should still be the originals
+            for name, orig in originals.items():
+                assert getattr(deps, name) is orig, f"{name} was unexpectedly patched"
         finally:
             mod._ocr_instance = None
 

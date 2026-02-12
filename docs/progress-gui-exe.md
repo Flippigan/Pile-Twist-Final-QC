@@ -95,18 +95,29 @@
 
 **In short:** The actual libraries are in the bundle, but PaddleX can't verify them because their package metadata is missing.
 
-#### Fix
+#### Fix (v2 — comprehensive)
 
-Monkey-patch `paddlex.utils.deps.require_extra` to a no-op lambda when `sys.frozen` is True, in `_get_ocr()` before `PaddleOCR()` is called. This is safe because all required libraries ARE present in the bundle — only their `.dist-info` metadata is missing. Forward-compatible: doesn't depend on specific dep names.
+Previous fix only patched `require_extra`, which was insufficient. Two additional problems:
+1. **`@lru_cache` poisoning:** `is_dep_available()` and `is_extra_available()` cache `False` results during the import chain (triggered by top-level `from paddleocr import PaddleOCR`). Even with `require_extra` bypassed, other code paths reading cached results could trigger errors.
+2. **Multiple raise paths:** `DependencyError` can be raised from `require_deps`, `require_hpip`, etc. — not just `require_extra`.
 
-- **Status:** Fixed — 73/73 tests pass (2 new tests for frozen-mode patch)
+New fix in `_get_ocr()` when `sys.frozen` is True:
+1. Clear `is_dep_available.cache_clear()` and `is_extra_available.cache_clear()` (purge stale `False` results from import-time)
+2. Replace `is_dep_available` → always returns `True`
+3. Replace `is_extra_available` → always returns `True`
+4. Replace `require_extra` → no-op
+5. Replace `require_deps` → no-op
+
+Safe because all required libraries ARE present in the bundle — only their `.dist-info` metadata is missing. Forward-compatible: doesn't depend on specific dep names.
+
+- **Status:** Fixed — 73/73 tests pass. Needs Windows bundle verification.
 
 ---
 
 ## Test Suite Status
 - **Total tests:** 73 (50 existing + 7 worker + 14 GUI + 2 frozen-mode patch)
 - **All passing:** yes
-- **Last full run:** after dependency monkey-patch fix
+- **Last full run:** after comprehensive dependency monkey-patch fix (v2)
 
 ## New Files Created
 | File | Description |
