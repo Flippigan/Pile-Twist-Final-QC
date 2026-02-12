@@ -11,9 +11,11 @@ block_cipher = None
 paddle_datas, paddle_bins, paddle_imports = collect_all("paddlepaddle")
 ocr_datas, ocr_bins, ocr_imports = collect_all("paddleocr")
 
-# Bundle pre-downloaded PaddleOCR models for offline use
-model_dir = os.path.expanduser("~/.paddleocr")
-model_datas = [(model_dir, ".paddleocr")] if os.path.isdir(model_dir) else []
+# Bundle pre-downloaded PaddleX/PaddleOCR models for offline use.
+# PaddleOCR v2.9+ caches models via PaddleX in ~/.paddlex/official_models/.
+# At runtime, PADDLE_PDX_CACHE_HOME is set to this bundled directory.
+paddlex_dir = os.path.expanduser("~/.paddlex")
+model_datas = [(paddlex_dir, ".paddlex")] if os.path.isdir(paddlex_dir) else []
 
 a = Analysis(
     ["gui.py"],

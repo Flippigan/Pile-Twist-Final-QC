@@ -110,17 +110,21 @@ _ocr_instance = None
 def _get_ocr():
     global _ocr_instance
     if _ocr_instance is None:
-        kwargs = dict(
+        # When running as PyInstaller bundle, redirect PaddleX model cache
+        # to the bundled .paddlex directory next to the executable.
+        # PaddleOCR v2.9+ uses PaddleX internally; PADDLE_PDX_CACHE_HOME
+        # controls where it looks for cached models.
+        if getattr(sys, "frozen", False):
+            bundle_dir = os.path.dirname(sys.executable)
+            os.environ["PADDLE_PDX_CACHE_HOME"] = os.path.join(
+                bundle_dir, ".paddlex"
+            )
+        _ocr_instance = PaddleOCR(
             lang="en",
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
             use_textline_orientation=False,
         )
-        # When running as PyInstaller bundle, use bundled model directory
-        if getattr(sys, "frozen", False):
-            bundle_dir = os.path.dirname(sys.executable)
-            kwargs["model_dir"] = os.path.join(bundle_dir, ".paddleocr")
-        _ocr_instance = PaddleOCR(**kwargs)
     return _ocr_instance
 
 

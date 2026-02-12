@@ -55,6 +55,18 @@
 
 ---
 
+## Known Issues
+
+### FIXED: `model_dir` is not a valid PaddleOCR argument
+- **Error:** `Failed to load OCR engine: Unknown argument model_dir`
+- **Root cause (two bugs):**
+  1. `_get_ocr()` passed `model_dir` kwarg to `PaddleOCR()`, but v2.9+ doesn't accept it — models are per-component (`text_detection_model_dir`, `text_recognition_model_dir`)
+  2. Spec file bundled `~/.paddleocr/` which doesn't exist — v2.9+ caches models via PaddleX in `~/.paddlex/official_models/`
+- **Fix:** Set `PADDLE_PDX_CACHE_HOME` env var when `sys.frozen` (redirects all PaddleX model resolution to bundled dir). Updated spec to bundle `~/.paddlex` instead of `~/.paddleocr`.
+- **Status:** Fixed — 71/71 tests pass
+
+---
+
 ## Test Suite Status
 - **Total tests:** 71 (50 existing + 7 worker + 14 GUI)
 - **All passing:** yes
