@@ -7,9 +7,12 @@ from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 
-# Collect all PaddleOCR + PaddlePaddle data files, binaries, hidden imports
+# Collect all PaddleOCR + PaddlePaddle + PaddleX data files, binaries, hidden imports.
+# PaddleX is needed because PaddleOCR v2.9+ delegates pipeline resolution to PaddleX,
+# which loads configs from paddlex/configs/pipelines/*.yaml via __file__ path traversal.
 paddle_datas, paddle_bins, paddle_imports = collect_all("paddlepaddle")
 ocr_datas, ocr_bins, ocr_imports = collect_all("paddleocr")
+pdx_datas, pdx_bins, pdx_imports = collect_all("paddlex")
 
 # Bundle pre-downloaded PaddleX/PaddleOCR models for offline use.
 # PaddleOCR v2.9+ caches models via PaddleX in ~/.paddlex/official_models/.
@@ -20,8 +23,8 @@ model_datas = [(paddlex_dir, ".paddlex")] if os.path.isdir(paddlex_dir) else []
 a = Analysis(
     ["gui.py"],
     pathex=[],
-    binaries=paddle_bins + ocr_bins,
-    datas=paddle_datas + ocr_datas + model_datas,
+    binaries=paddle_bins + ocr_bins + pdx_bins,
+    datas=paddle_datas + ocr_datas + pdx_datas + model_datas,
     hiddenimports=[
         "providers",
         "providers.paddleocr_provider",
@@ -31,7 +34,8 @@ a = Analysis(
         "worker",
     ]
     + paddle_imports
-    + ocr_imports,
+    + ocr_imports
+    + pdx_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

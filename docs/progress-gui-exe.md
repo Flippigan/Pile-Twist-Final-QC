@@ -65,6 +65,12 @@
 - **Fix:** Set `PADDLE_PDX_CACHE_HOME` env var when `sys.frozen` (redirects all PaddleX model resolution to bundled dir). Updated spec to bundle `~/.paddlex` instead of `~/.paddleocr`.
 - **Status:** Fixed — 71/71 tests pass
 
+### FIXED: PaddleOCR pipeline not found in PyInstaller bundle
+- **Error:** `Failed to load OCR engine: The pipeline (OCR) does not exist! Please use a pipeline name or a config file path!`
+- **Root cause:** Spec only collected `paddlepaddle` and `paddleocr` but not `paddlex`. PaddleOCR v2.9+ delegates pipeline resolution to PaddleX, which resolves `"OCR"` → `paddlex/configs/pipelines/OCR.yaml` via `Path(__file__)` traversal. Without `collect_all("paddlex")`, the YAML config files aren't in the bundle.
+- **Fix:** Added `collect_all("paddlex")` to `twist_qc_gui.spec` — bundles all PaddleX data files including pipeline configs.
+- **Status:** Fixed
+
 ---
 
 ## Test Suite Status
