@@ -1,6 +1,8 @@
 # providers/paddleocr_provider.py
 """PaddleOCR-based angle extraction from pile plot images."""
+import os
 import re
+import sys
 
 import numpy as np
 from PIL import Image
@@ -108,12 +110,17 @@ _ocr_instance = None
 def _get_ocr():
     global _ocr_instance
     if _ocr_instance is None:
-        _ocr_instance = PaddleOCR(
+        kwargs = dict(
             lang="en",
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
             use_textline_orientation=False,
         )
+        # When running as PyInstaller bundle, use bundled model directory
+        if getattr(sys, "frozen", False):
+            bundle_dir = os.path.dirname(sys.executable)
+            kwargs["model_dir"] = os.path.join(bundle_dir, ".paddleocr")
+        _ocr_instance = PaddleOCR(**kwargs)
     return _ocr_instance
 
 
