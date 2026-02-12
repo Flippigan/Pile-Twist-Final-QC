@@ -71,12 +71,42 @@
 - **Fix:** Added `collect_all("paddlex")` to `twist_qc_gui.spec` — bundles all PaddleX data files including pipeline configs.
 - **Status:** Fixed
 
+### FIXED: Dependency error during pipeline creation in PyInstaller bundle
+- **Error:** `Failed to load OCR engine: A dependency error occurred during pipeline creation. Please refer to the installation documentation to ensure all required dependencies are installed.`
+- **Where:** `providers/paddleocr_provider.py` `_get_ocr()` — PaddleOCR/PaddleX pipeline creation fails when running as bundled .exe
+
+#### Root Cause (traced)
+
+**Error chain:**
+1. `PaddleOCR()` → `_create_paddlex_pipeline()` (`paddleocr/_pipelines/base.py:104`)
+2. `OCRPipeline.__init__()` has `@pipeline_requires_extra("ocr", alt="ocr-core")` decorator (`paddlex/inference/pipelines/ocr/pipeline.py:485`)
+3. `require_extra()` → `is_extra_available("ocr") or is_extra_available("ocr-core")` (`paddlex/utils/deps.py:191`)
+4. `is_extra_available()` iterates deps, calls `is_dep_available(dep)` for each (`paddlex/utils/deps.py:180`)
+5. `is_dep_available()` uses `importlib.metadata.version(dep)` to check if packages are installed (`paddlex/utils/deps.py:112`)
+6. If metadata lookup fails → `DependencyError` → caught in `base.py:106-108` and re-raised as `RuntimeError` with the generic message
+
+**Why it fails in the bundle:**
+- The `ocr-core` extra requires 6 deps: `imagesize`, `opencv-contrib-python`, `pyclipper`, `pypdfium2`, `python-bidi`, `shapely`
+- All 6 are installed locally and `is_extra_available("ocr-core")` = True in dev — PaddleOCR works fine
+- The spec only runs `collect_all()` for `paddlepaddle`, `paddleocr`, `paddlex` — bundling only their `.dist-info` metadata
+- The 6 `ocr-core` deps are bundled as **code** (via transitive dependency analysis) but their `.dist-info` metadata is NOT collected
+- `importlib.metadata.version("pyclipper")` → `PackageNotFoundError` → `is_dep_available()` returns `False`
+- `is_extra_available("ocr-core")` → `False`, `is_extra_available("ocr")` → also `False` → `DependencyError`
+
+**In short:** The actual libraries are in the bundle, but PaddleX can't verify them because their package metadata is missing.
+
+#### Fix
+
+Monkey-patch `paddlex.utils.deps.require_extra` to a no-op lambda when `sys.frozen` is True, in `_get_ocr()` before `PaddleOCR()` is called. This is safe because all required libraries ARE present in the bundle — only their `.dist-info` metadata is missing. Forward-compatible: doesn't depend on specific dep names.
+
+- **Status:** Fixed — 73/73 tests pass (2 new tests for frozen-mode patch)
+
 ---
 
 ## Test Suite Status
-- **Total tests:** 71 (50 existing + 7 worker + 14 GUI)
+- **Total tests:** 73 (50 existing + 7 worker + 14 GUI + 2 frozen-mode patch)
 - **All passing:** yes
-- **Last full run:** after Task 6
+- **Last full run:** after dependency monkey-patch fix
 
 ## New Files Created
 | File | Description |

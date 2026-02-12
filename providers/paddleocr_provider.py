@@ -119,6 +119,13 @@ def _get_ocr():
             os.environ["PADDLE_PDX_CACHE_HOME"] = os.path.join(
                 bundle_dir, ".paddlex"
             )
+            # Monkey-patch PaddleX dependency checker to skip metadata
+            # verification. In a PyInstaller bundle, all required libraries
+            # are present but their .dist-info metadata is not collected,
+            # causing PaddleX to falsely report missing dependencies.
+            import paddlex.utils.deps
+
+            paddlex.utils.deps.require_extra = lambda *args, **kwargs: None
         _ocr_instance = PaddleOCR(
             lang="en",
             use_doc_orientation_classify=False,

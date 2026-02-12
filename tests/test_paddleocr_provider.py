@@ -1,4 +1,5 @@
 # tests/test_paddleocr_provider.py
+import sys
 import numpy as np
 import pytest
 from unittest.mock import patch, MagicMock
@@ -178,6 +179,63 @@ class TestPaddleOCRProvider:
             provider = PaddleOCRProvider({})
             with pytest.raises(ValueError, match="No angle value found"):
                 provider.read_image(str(sample_image_with_green))
+
+
+class TestFrozenModeMonkeyPatch:
+    """Test that PyInstaller frozen mode patches PaddleX dep checking."""
+
+    def test_require_extra_patched_when_frozen(self, tmp_path):
+        """When sys.frozen=True, require_extra should be a no-op before PaddleOCR init."""
+        import providers.paddleocr_provider as mod
+        import paddlex.utils.deps as deps
+
+        original_require_extra = deps.require_extra
+
+        # Reset singleton so _get_ocr() re-runs its init logic
+        mod._ocr_instance = None
+
+        captured = {}
+
+        def spy_paddleocr(*args, **kwargs):
+            # Capture what require_extra looks like at PaddleOCR() call time
+            captured["require_extra"] = deps.require_extra
+            mock_instance = MagicMock()
+            mock_instance.predict.return_value = []
+            return mock_instance
+
+        try:
+            with patch.object(sys, "frozen", True, create=True), \
+                 patch.object(sys, "executable", str(tmp_path / "twist_qc_gui.exe")), \
+                 patch("providers.paddleocr_provider.PaddleOCR", side_effect=spy_paddleocr):
+                mod._get_ocr()
+
+            # require_extra should have been replaced with a no-op
+            assert captured["require_extra"] is not original_require_extra
+            # The no-op should not raise
+            captured["require_extra"]("ocr", alt="ocr-core")
+        finally:
+            # Restore original and reset singleton
+            deps.require_extra = original_require_extra
+            mod._ocr_instance = None
+
+    def test_require_extra_not_patched_when_not_frozen(self):
+        """In normal (non-frozen) mode, require_extra should be untouched."""
+        import providers.paddleocr_provider as mod
+        import paddlex.utils.deps as deps
+
+        original_require_extra = deps.require_extra
+
+        mod._ocr_instance = None
+
+        try:
+            with patch("providers.paddleocr_provider.PaddleOCR") as mock_cls:
+                mock_cls.return_value = MagicMock()
+                mod._get_ocr()
+
+            # require_extra should still be the original
+            assert deps.require_extra is original_require_extra
+        finally:
+            mod._ocr_instance = None
 
 
 class TestParseAngleFromOCR:
