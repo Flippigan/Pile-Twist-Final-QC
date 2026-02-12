@@ -1,5 +1,5 @@
 # config.yaml
 
 # Paths (relative to project root or absolute)
-input_folder: ./Needs QC
-output_folder: ./Needs QC/QCd
+input_folder: ./BS-INV-30-S02_QC/Needs QC
+output_folder: ./BS-INV-30-S02_QC/Needs QC/QCd
