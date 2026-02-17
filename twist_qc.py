@@ -29,7 +29,9 @@ def find_csv(input_folder: Path, config: dict) -> Path:
     search_dirs = [input_folder, input_folder.parent]
     csvs = []
     for d in search_dirs:
-        csvs.extend(d.glob("*.csv"))
+        csvs.extend(
+            c for c in d.glob("*.csv") if not c.name.startswith("._")
+        )
     # Deduplicate (in case input_folder == parent somehow)
     csvs = list({c.resolve(): c for c in csvs}.values())
 

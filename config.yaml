@@ -1,5 +1,8 @@
 # config.yaml
 
 # Paths (relative to project root or absolute)
-input_folder: ./BS-INV-30-S02_QC/Needs QC
-output_folder: ./BS-INV-30-S02_QC/Needs QC/QCd
+input_folder: '/Volumes/Untitled/INV 26 Needs QC'
+output_folder: '/Volumes/Untitled/INV 26 Needs QC/QCd'
+
+# CSV report path (optional — if omitted, auto-detects the single .csv in input_folder)
+csv_path: /Volumes/Untitled/INV 32 Needs QC/Final_Report.csv
