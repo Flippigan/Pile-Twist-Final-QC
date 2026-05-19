@@ -8,6 +8,12 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      # Explicit, workflow-wide cache path so the pre-download step and the
+      # PyInstaller spec agree on where to find/bundle PaddleX models.
+      # Using os.path.expanduser("~/.paddlex") in the spec was unreliable
+      # because HOME on Actions runners differs between steps.
+      PADDLE_PDX_CACHE_HOME: ${{ github.workspace }}\paddle_cache
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +30,11 @@ jobs:
           pip install pyinstaller
 
       - name: Pre-download PaddleOCR models
-        run: python -c "from providers.paddleocr_provider import _get_ocr; _get_ocr()"
+        run: |
+          echo "PADDLE_PDX_CACHE_HOME=$env:PADDLE_PDX_CACHE_HOME"
+          python -c "from providers.paddleocr_provider import _get_ocr; _get_ocr()"
+          echo "--- Contents of cache dir after download ---"
+          Get-ChildItem -Recurse -Depth 2 "$env:PADDLE_PDX_CACHE_HOME" | Select-Object FullName | Format-Table -AutoSize
 
       - name: Build .exe with PyInstaller
         run: pyinstaller twist_qc_gui.spec --clean

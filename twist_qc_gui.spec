@@ -15,10 +15,24 @@ ocr_datas, ocr_bins, ocr_imports = collect_all("paddleocr")
 pdx_datas, pdx_bins, pdx_imports = collect_all("paddlex")
 
 # Bundle pre-downloaded PaddleX/PaddleOCR models for offline use.
-# PaddleOCR v2.9+ caches models via PaddleX in ~/.paddlex/official_models/.
-# At runtime, PADDLE_PDX_CACHE_HOME is set to this bundled directory.
-paddlex_dir = os.path.expanduser("~/.paddlex")
-model_datas = [(paddlex_dir, ".paddlex")] if os.path.isdir(paddlex_dir) else []
+# PaddleOCR v2.9+ caches models via PaddleX. The build workflow sets
+# PADDLE_PDX_CACHE_HOME explicitly so the pre-download step and this spec
+# agree on the cache location. We fall back to ~/.paddlex for local builds.
+# At runtime, PADDLE_PDX_CACHE_HOME is set to this bundled directory (see gui.py).
+paddlex_dir = os.environ.get("PADDLE_PDX_CACHE_HOME") or os.path.expanduser("~/.paddlex")
+print(f"[spec] PADDLE cache lookup: {paddlex_dir!r} (exists={os.path.isdir(paddlex_dir)})")
+if not os.path.isdir(paddlex_dir):
+    raise FileNotFoundError(
+        f"PaddleX cache directory not found at {paddlex_dir!r}. "
+        f"Run pre-download step first or set PADDLE_PDX_CACHE_HOME."
+    )
+official_models_dir = os.path.join(paddlex_dir, "official_models")
+if not os.path.isdir(official_models_dir):
+    raise FileNotFoundError(
+        f"official_models/ not found under {paddlex_dir!r}. Pre-download did not populate models."
+    )
+model_datas = [(paddlex_dir, ".paddlex")]
+print(f"[spec] Bundling models from {paddlex_dir!r} -> .paddlex/ in bundle")
 
 a = Analysis(
     ["gui.py"],
