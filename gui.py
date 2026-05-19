@@ -1,6 +1,17 @@
 # gui.py
 """PySide6 GUI for Twist QC Automation."""
+import os
 import sys
+
+# When running as a PyInstaller bundle, point PaddleX at the bundled model
+# cache and disable its network connectivity probes. These env vars are read
+# once at paddlex.utils.cache / paddlex.utils.flags import time, so they MUST
+# be set before any transitive paddle/paddleocr import below.
+if getattr(sys, "frozen", False):
+    _bundle_data_dir = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    os.environ["PADDLE_PDX_CACHE_HOME"] = os.path.join(_bundle_data_dir, ".paddlex")
+    os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
+
 from pathlib import Path
 
 from PySide6.QtCore import Qt

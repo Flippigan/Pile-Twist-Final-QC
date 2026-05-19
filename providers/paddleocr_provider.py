@@ -110,22 +110,16 @@ _ocr_instance = None
 def _get_ocr():
     global _ocr_instance
     if _ocr_instance is None:
-        # When running as PyInstaller bundle, redirect PaddleX model cache
-        # to the bundled .paddlex directory next to the executable.
-        # PaddleOCR v2.9+ uses PaddleX internally; PADDLE_PDX_CACHE_HOME
-        # controls where it looks for cached models.
+        # When running as PyInstaller bundle, monkey-patch PaddleX's dep
+        # checker. In a bundle, all required libraries are present but their
+        # .dist-info metadata is not collected, so importlib.metadata.version()
+        # falsely reports missing deps. We clear the lru_cache (which captured
+        # False during the import chain) and replace the check functions.
+        #
+        # Note: PADDLE_PDX_CACHE_HOME and PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK
+        # must be set in gui.py BEFORE paddleocr is imported — paddlex caches
+        # those env vars at module-import time, so setting them here is too late.
         if getattr(sys, "frozen", False):
-            bundle_dir = os.path.dirname(sys.executable)
-            os.environ["PADDLE_PDX_CACHE_HOME"] = os.path.join(
-                bundle_dir, ".paddlex"
-            )
-            # Monkey-patch PaddleX dependency checker to skip all metadata
-            # verification. In a PyInstaller bundle, all required libraries
-            # are present but their .dist-info metadata is not collected,
-            # causing importlib.metadata.version() to fail and PaddleX to
-            # falsely report missing dependencies.
-            # We must: (1) clear lru_cache results that cached False during
-            # the import chain, and (2) replace all dep-checking functions.
             import paddlex.utils.deps as _deps
 
             _deps.is_dep_available.cache_clear()
